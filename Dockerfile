@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-FROM --platform=$BUILDPLATFORM golang:1.17 as builder-env
+FROM hub.qucheng.com/library/god as builder-env
 
 ARG GOPROXY
 ARG PKG
@@ -29,7 +29,7 @@ WORKDIR /go/src/github.com/vmware-tanzu/velero
 
 COPY . /go/src/github.com/vmware-tanzu/velero
 
-RUN apt-get update && apt-get install -y bzip2
+RUN sed -i -r 's/(deb|security).debian.org/mirrors.tencent.com/g' /etc/apt/sources.list && apt-get update && apt-get install -y bzip2
 
 FROM --platform=$BUILDPLATFORM builder-env as builder
 
@@ -44,17 +44,23 @@ ENV GOOS=${TARGETOS} \
     GOARCH=${TARGETARCH} \
     GOARM=${TARGETVARIANT}
 
-RUN mkdir -p /output/usr/bin && \
-    bash ./hack/download-restic.sh && \
-    export GOARM=$( echo "${GOARM}" | cut -c2-) && \
+RUN export GOARM=$( echo "${GOARM}" | cut -c2-) && \
     go build -o /output/${BIN} \
     -ldflags "${LDFLAGS}" ${PKG}/cmd/${BIN}
 
-FROM gcr.io/distroless/base-debian11:nonroot
+FROM hub.qucheng.com/library/debian:11.3-slim
 
-LABEL maintainer="Nolan Brubaker <brubakern@vmware.com>"
+ENV TZ=Asia/Shanghai \
+    DEBIAN_FRONTEND=noninteractive
 
-COPY --from=builder /output /
+RUN sed -i -r 's/(deb|security).debian.org/mirrors.cloud.tencent.com/g' /etc/apt/sources.list \
+    && apt-get update \
+    && apt-get install -y curl wget tzdata zip unzip s6 pwgen cron apt-transport-https ca-certificates procps \
+    && ln -fs /usr/share/zoneinfo/${TZ} /etc/localtime \
+    && echo ${TZ} > /etc/timezone \
+    && dpkg-reconfigure --frontend noninteractive tzdata \
+    && apt-get clean
 
-USER nonroot:nonroot
+COPY --from=builder /output/velero /velero
+COPY --from=hub.qucheng.com/third-party/restic:0.13.1 /usr/bin/restic /usr/bin/restic
 

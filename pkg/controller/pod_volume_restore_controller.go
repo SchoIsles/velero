@@ -151,10 +151,10 @@ func (c *PodVolumeRestoreReconciler) shouldProcess(ctx context.Context, log logr
 		return false, nil, err
 	}
 
-	if !isResticInitContainerRunning(pod) {
-		log.Debug("Pod is not running restic-wait init container, skip")
-		return false, nil, nil
-	}
+	//if !isResticInitContainerRunning(pod) {
+	//	log.Debug("Pod is not running restic-wait init container, skip")
+	//	return false, nil, nil
+	//}
 
 	return true, pod, nil
 }
@@ -229,16 +229,22 @@ func singlePathMatch(path string) (string, error) {
 }
 
 func (c *PodVolumeRestoreReconciler) processRestore(ctx context.Context, req *velerov1api.PodVolumeRestore, pod *corev1api.Pod, log logrus.FieldLogger) error {
-	volumeDir, err := kube.GetVolumeDirectory(ctx, log, pod, req.Spec.Volume, c.Client)
+	volumeDir, pvcName, err := kube.GetVolumeDirectory(ctx, log, pod, req.Spec.Volume, c.Client)
 	if err != nil {
 		return errors.Wrap(err, "error getting volume directory name")
 	}
 
-	// Get the full path of the new volume's directory as mounted in the daemonset pod, which
-	// will look like: /host_pods/<new-pod-uid>/volumes/<volume-plugin-name>/<volume-dir>
-	volumePath, err := singlePathMatch(fmt.Sprintf("/host_pods/%s/volumes/*/%s", string(req.Spec.Pod.UID), volumeDir))
-	if err != nil {
-		return errors.Wrap(err, "error identifying path of volume")
+	volumePath := ""
+	k3sPath := fmt.Sprintf("/host_pods/%s_%s_%s", volumeDir, pod.Namespace, pvcName)
+	if exist, _ := c.fileSystem.DirExists(k3sPath); exist {
+		volumePath = k3sPath
+	} else {
+		// Get the full path of the new volume's directory as mounted in the daemonset pod, which
+		// will look like: /host_pods/<new-pod-uid>/volumes/<volume-plugin-name>/<volume-dir>
+		volumePath, err = singlePathMatch(fmt.Sprintf("/host_pods/%s/volumes/*/%s", string(req.Spec.Pod.UID), volumeDir))
+		if err != nil {
+			return errors.Wrap(err, "error identifying path of volume")
+		}
 	}
 
 	credsFile, err := c.credentialsFileStore.Path(restic.RepoKeySelector())

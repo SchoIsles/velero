@@ -157,13 +157,13 @@ func newResticServer(logger logrus.FieldLogger, factory client.Factory, metricAd
 
 	// the cache isn't initialized yet when "validatePodVolumesHostPath" is called, the client returned by the manager cannot
 	// be used, so we need the kube client here
-	client, err := factory.KubeClient()
-	if err != nil {
-		return nil, err
-	}
-	if err := s.validatePodVolumesHostPath(client); err != nil {
-		return nil, err
-	}
+	//client, err := factory.KubeClient()
+	//if err != nil {
+	//	return nil, err
+	//}
+	//if err := s.validatePodVolumesHostPath(client); err != nil {
+	//	return nil, err
+	//}
 
 	return s, nil
 }

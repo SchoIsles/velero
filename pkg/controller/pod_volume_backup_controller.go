@@ -255,7 +255,7 @@ func (r *PodVolumeBackupReconciler) getParentSnapshot(ctx context.Context, log l
 		}
 
 		if mostRecentPVB == nil || pvb.Status.StartTimestamp.After(mostRecentPVB.Status.StartTimestamp.Time) {
-			mostRecentPVB = &pvb
+			mostRecentPVB = pvb.DeepCopy()
 		}
 	}
 
@@ -305,18 +305,27 @@ type resticDetails struct {
 }
 
 func (r *PodVolumeBackupReconciler) buildResticCommand(ctx context.Context, log *logrus.Entry, pvb *velerov1api.PodVolumeBackup, pod *corev1.Pod, details *resticDetails) (*restic.Command, error) {
-	volDir, err := kube.GetVolumeDirectory(ctx, log, pod, pvb.Spec.Volume, r.Client)
+	volDir, pvcName, err := kube.GetVolumeDirectory(ctx, log, pod, pvb.Spec.Volume, r.Client)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting volume directory name")
 	}
 
-	pathGlob := fmt.Sprintf("/host_pods/%s/volumes/*/%s", string(pvb.Spec.Pod.UID), volDir)
-	log.WithField("pathGlob", pathGlob).Debug("Looking for path matching glob")
+	path := ""
+	k3sPath := fmt.Sprintf("/host_pods/%s_%s_%s", volDir, pod.Namespace, pvcName)
+	log.Debugf("detect k3s path %s", k3sPath)
+	if exist, _ := r.FileSystem.DirExists(k3sPath); exist {
+		log.Debugf("found k3s path %s", k3sPath)
+		path = k3sPath
+	} else {
+		pathGlob := fmt.Sprintf("/host_pods/%s/volumes/*/%s", string(pvb.Spec.Pod.UID), volDir)
+		log.WithField("pathGlob", pathGlob).Debug("Looking for path matching glob")
 
-	path, err := r.singlePathMatch(pathGlob)
-	if err != nil {
-		return nil, errors.Wrap(err, "identifying unique volume path on host")
+		path, err = r.singlePathMatch(pathGlob)
+		if err != nil {
+			return nil, errors.Wrap(err, "identifying unique volume path on host")
+		}
 	}
+
 	log.WithField("path", path).Debugf("Found path matching glob")
 
 	// Temporary credentials.

@@ -106,7 +106,7 @@ LINTERS ?= "gosec,goconst,gofmt,goimports,unparam"
 platform_temp = $(subst -, ,$(ARCH))
 GOOS = $(word 1, $(platform_temp))
 GOARCH = $(word 2, $(platform_temp))
-GOPROXY ?= https://proxy.golang.org
+GOPROXY ?= https://goproxy.cn,direct
 
 # If you want to build all binaries, see the 'all-build' rule.
 # If you want to build all containers, see the 'all-containers' rule.
