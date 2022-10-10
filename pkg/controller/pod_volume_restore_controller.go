@@ -310,7 +310,7 @@ func (c *PodVolumeRestoreReconciler) processRestore(ctx context.Context, req *ve
 		log.WithError(err).Warnf("error removing .velero directory from directory %s", volumePath)
 	}
 
-	var restoreUID types.UID
+	var restoreUID = types.UID("abcdefg1234567")
 	for _, owner := range req.OwnerReferences {
 		if boolptr.IsSetToTrue(owner.Controller) {
 			restoreUID = owner.UID
