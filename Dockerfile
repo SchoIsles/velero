@@ -62,5 +62,7 @@ RUN sed -i -r 's/(deb|security).debian.org/mirrors.cloud.tencent.com/g' /etc/apt
     && apt-get clean
 
 COPY --from=builder /output/velero /velero
-COPY --from=hub.qucheng.com/third-party/restic:0.13.1 /usr/bin/restic /usr/bin/restic
-
+#COPY --from=hub.qucheng.com/third-party/restic:0.13.1 /usr/bin/restic /usr/bin/restic
+# use patched restic image, with symlink restore bug fix, base 0.13.1 version
+# should use offical image after 0.14.0
+COPY --from=hub.qucheng.com/third-party/restic:0.13.1-rc1 /usr/bin/restic /usr/bin/restic
