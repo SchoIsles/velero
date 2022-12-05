@@ -69,6 +69,38 @@ func GetSnapshotID(snapshotIdCmd *Command) (string, error) {
 	return snapshots[0].ShortID, nil
 }
 
+func LookupFile(lsCmd *Command) (string, error) {
+	stdout, stderr, err := exec.RunCommand(lsCmd.Cmd())
+	if err != nil {
+		return "", errors.Wrapf(err, "error running command, stderr=%s", stderr)
+	}
+
+	return parseLsContent(stdout)
+}
+
+func parseLsContent(content string) (string, error) {
+
+	type lsFile struct {
+		Name string `json:"name"`
+		Type string `json:"type"`
+		Path string `json:"path"`
+	}
+	var err error
+	var f lsFile
+
+	lines := strings.Split(content, "\n")
+	lastLine := lines[len(lines)-2]
+
+	if err = json.Unmarshal([]byte(lastLine), &f); err != nil {
+		return "", errors.Wrap(err, "error unmarshalling restic ls result")
+	}
+
+	if f.Name == "" && f.Path == "" {
+		return "", errors.New("no file matched")
+	}
+	return f.Name, nil
+}
+
 // RunBackup runs a `restic backup` command and watches the output to provide
 // progress updates to the caller.
 func RunBackup(backupCmd *Command, log logrus.FieldLogger, updateFunc func(velerov1api.PodVolumeOperationProgress)) (string, string, error) {

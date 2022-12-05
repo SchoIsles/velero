@@ -35,3 +35,7 @@ func (exec BackupExec) RunBackup(cmd *Command, log logrus.FieldLogger, updateFn 
 func (exec BackupExec) GetSnapshotID(snapshotIdCmd *Command) (string, error) {
 	return GetSnapshotID(snapshotIdCmd)
 }
+
+func (exec BackupExec) LookupFile(lsCmd *Command) (string, error) {
+	return LookupFile(lsCmd)
+}

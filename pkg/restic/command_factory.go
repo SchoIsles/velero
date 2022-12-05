@@ -123,3 +123,13 @@ func StatsCommand(repoIdentifier, passwordFile, snapshotID string) *Command {
 		ExtraFlags:     []string{"--json"},
 	}
 }
+
+func LsCommand(repoIdentifier, passwordFile, snapshotID, path string) *Command {
+	return &Command{
+		Command:        "ls",
+		RepoIdentifier: repoIdentifier,
+		PasswordFile:   passwordFile,
+		Args:           []string{snapshotID, path},
+		ExtraFlags:     []string{"--json"},
+	}
+}

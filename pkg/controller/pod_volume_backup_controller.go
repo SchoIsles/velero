@@ -45,6 +45,7 @@ import (
 type BackupExecuter interface {
 	RunBackup(*restic.Command, logrus.FieldLogger, func(velerov1api.PodVolumeOperationProgress)) (string, string, error)
 	GetSnapshotID(*restic.Command) (string, error)
+	LookupFile(*restic.Command) (string, error)
 }
 
 // PodVolumeBackupReconciler reconciles a PodVolumeBackup object
@@ -142,6 +143,13 @@ func (r *PodVolumeBackupReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		resticCmd.ExtraFlags = append(resticCmd.ExtraFlags, skipTLSRet)
 	}
 
+	// Add verification file into the volume
+	verifier := newVolumeVerifier(resticCmd.Dir, pvb.Name, log)
+	if err = verifier.write(); err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "error write verifier file")
+	}
+	defer verifier.clean()
+
 	var stdout, stderr string
 
 	var emptySnapshot bool
@@ -169,6 +177,19 @@ func (r *PodVolumeBackupReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		snapshotID, err = r.ResticExec.GetSnapshotID(cmd)
 		if err != nil {
 			return r.updateStatusToFailed(ctx, &pvb, err, "getting snapshot id", log)
+		}
+
+		// find verify file in the snapshot
+		lsCmd := restic.LsCommand(pvb.Spec.RepoIdentifier, resticDetails.credsFile, snapshotID, "/"+verifier.verifyFile)
+		lsCmd.Env = resticDetails.envs
+		lsCmd.CACertFile = resticDetails.caCertFile
+		if len(skipTLSRet) > 0 {
+			lsCmd.ExtraFlags = append(lsCmd.ExtraFlags, skipTLSRet)
+		}
+
+		_, err = r.ResticExec.LookupFile(lsCmd)
+		if err != nil {
+			return r.updateStatusToFailed(ctx, &pvb, err, "verify file failed", log)
 		}
 	}
 

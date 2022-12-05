@@ -108,3 +108,36 @@ func Test_getVolumeSize(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, expectedSize, actualSize)
 }
+
+func Test_lsFile(t *testing.T) {
+	tests := []struct {
+		output  string
+		want    string
+		wantErr bool
+	}{
+		{`found 8 old cache directories in /Users/youtube/Library/Caches/restic, run 'restic cache --cleanup' to remove them
+{"time":"2022-10-27T16:52:24.843831+08:00","tree":"a46d6d682f5b5795ff4e2cbb15a1f35bce82de2f147a2fe1f05f64231c65fa75","paths":["/tmp/123123"],"hostname":"MacBook-Pro.local","username":"youtube","uid":501,"gid":20,"tags":["di=ddd"],"id":"7be14766b57eae6c75d3a747a35622756b2a3437f24fd0d355283c2e621a311d","short_id":"7be14766","struct_type":"snapshot"}
+{"name":"Package.swift","type":"file","path":"/123123.swiftpm/Package.swift","uid":501,"gid":20,"size":1074,"mode":420,"permissions":"-rw-r--r--","mtime":"2022-05-16T11:36:02.068797131+08:00","atime":"2022-05-16T11:36:02.068797131+08:00","ctime":"2022-05-16T11:36:02.069074195+08:00","struct_type":"node"}
+`, "Package.swift", false},
+		{`found 8 old cache directories in /Users/youtube/Library/Caches/restic, run 'restic cache --cleanup' to remove them
+{"time":"2022-10-27T16:52:24.843831+08:00","tree":"a46d6d682f5b5795ff4e2cbb15a1f35bce82de2f147a2fe1f05f64231c65fa75","paths":["/tmp/123123"],"hostname":"MacBook-Pro.local","username":"youtube","uid":501,"gid":20,"tags":["di=ddd"],"id":"7be14766b57eae6c75d3a747a35622756b2a3437f24fd0d355283c2e621a311d","short_id":"7be14766","struct_type":"snapshot"}
+`, "", true},
+		{`repository 498109fb opened successfully, password is correct
+found 8 old cache directories in /Users/youtube/Library/Caches/restic, run 'restic cache --cleanup' to remove them
+Ignoring "17be14766": no matching ID found for prefix "17be14766"
+`, "", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.want, func(t *testing.T) {
+			res, err := parseLsContent(tt.output)
+			t.Logf("want:%s wantErr:%v content:%s", tt.want, tt.wantErr, tt.output)
+			t.Logf("res: %s, err:%v", res, err)
+			assert.Equal(t, tt.want, res)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
